@@ -1,9 +1,10 @@
 import { GraphQLServer } from 'graphql-yoga';
+import { v4 as uuidv4 } from 'uuid';
 
 // Scalar types - String, Boolean, Int, Float, ID
 
 // Demo user data
-const users = [
+let users = [
   {
     id: '1',
     name: 'Peete',
@@ -23,7 +24,7 @@ const users = [
 ];
 
 // Demo post data
-const posts = [
+let posts = [
   {
     id: '1',
     title: 'hello',
@@ -48,7 +49,7 @@ const posts = [
 ];
 
 // Demo comment data
-const comments = [
+let comments = [
   {
     id: '1',
     text: 'this is a random text',
@@ -83,6 +84,32 @@ const typeDefs = `
     comments: [Comment!]!
     me: User!
     post: Post!
+  }
+
+  type Mutation {
+    createUser(data: CreateUserInput!): User!
+    deleteUser(id: ID!): User!
+    createPost(data: CreatePostInput!): Post!
+    createComment(data: CreateCommentInput!): Comment!
+  }
+
+  input CreateUserInput {
+    name: String!
+    email: String!
+    age: Int
+  }
+
+  input CreatePostInput {
+    title: String!
+    body: String!
+    published: Boolean!
+    author: ID!
+  }
+
+  input CreateCommentInput {
+    text: String!
+    author: ID!
+    post: ID!
   }
 
   type User {
@@ -141,6 +168,56 @@ const resolvers = {
       body: 'fasadfafsas',
       published: false,
     }),
+  },
+  Mutation: {
+    createUser: (parent, { data }, ctx, info) => {
+      const emailTaken = users.some(({ email }) => email === data.email);
+      if (emailTaken) throw new Error('Email taken');
+      const user = {
+        id: uuidv4(),
+        ...data,
+      };
+      users.push(user);
+      return user;
+    },
+    deleteUser: (parent, args, ctx, info) => {
+      const userIndex = users.findIndex(({ id }) => id === args.id);
+      if (userIndex < 0) throw new Error('User not found');
+      const [deletedUser] = users.splice(userIndex, 1);
+      posts = posts.filter(({ author, id }) => {
+        const match = author === args.id;
+        if (match) {
+          comments = comments.filter(({ post }) => post !== id);
+        }
+        return !match;
+      });
+      comments = comments.filter(({ author }) => author !== args.id);
+      return deletedUser;
+    },
+    createPost: (parent, { data }, ctx, info) => {
+      const usersExists = users.some(({ id }) => id === data.author);
+      if (!usersExists) throw new Error('User not found');
+      const post = {
+        id: uuidv4(),
+        ...data,
+      };
+      posts.push(post);
+      return post;
+    },
+    createComment: (parent, { data }, ctx, info) => {
+      const usersExists = users.some(({ id }) => id === data.author);
+      if (!usersExists) throw new Error('User not found');
+      const isAPublishedPost = posts.some(
+        ({ id, published }) => id === data.post && published
+      );
+      if (!isAPublishedPost) throw new Error('Published post not found');
+      const comment = {
+        id: uuidv4(),
+        ...data,
+      };
+      comments.push(comment);
+      return comment;
+    },
   },
   Post: {
     author: ({ author }, args, ctx, info) =>
