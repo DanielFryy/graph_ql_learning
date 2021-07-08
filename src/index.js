@@ -90,7 +90,9 @@ const typeDefs = `
     createUser(data: CreateUserInput!): User!
     deleteUser(id: ID!): User!
     createPost(data: CreatePostInput!): Post!
+    deletePost(id: ID!): Post!
     createComment(data: CreateCommentInput!): Comment!
+    deleteComment(id: ID!): Comment!
   }
 
   input CreateUserInput {
@@ -204,6 +206,13 @@ const resolvers = {
       posts.push(post);
       return post;
     },
+    deletePost: (parent, args, ctx, info) => {
+      const postIndex = posts.findIndex(({ id }) => id === args.id);
+      if (postIndex < 0) throw new Error('Post not found');
+      const [deletedPost] = posts.splice(postIndex, 1);
+      comments = comments.filter(({ post }) => post !== args.id);
+      return deletedPost;
+    },
     createComment: (parent, { data }, ctx, info) => {
       const usersExists = users.some(({ id }) => id === data.author);
       if (!usersExists) throw new Error('User not found');
@@ -217,6 +226,12 @@ const resolvers = {
       };
       comments.push(comment);
       return comment;
+    },
+    deleteComment: (parent, args, ctx, info) => {
+      const commentIndex = comments.findIndex(({ id }) => id === args.id);
+      if (commentIndex < 0) throw new Error('Comment not found');
+      const [deletedComment] = comments.splice(commentIndex, 1);
+      return deletedComment;
     },
   },
   Post: {
@@ -244,5 +259,5 @@ const server = new GraphQLServer({
 });
 
 server.start(({ port }) => {
-  console.log('listening in:', `http://localhost:${port}`);
+  console.log(`Server is running on http://localhost:${port}`);
 });
