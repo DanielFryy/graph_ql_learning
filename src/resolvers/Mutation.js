@@ -72,7 +72,8 @@ const Mutation = {
     }
     return post;
   },
-  createComment: (parent, { data }, { db }, info) => {
+  createComment: (parent, { data }, ctx, info) => {
+    const { db, pubsub } = ctx;
     const usersExists = db.users.some(({ id }) => id === data.author);
     if (!usersExists) throw new Error('User not found');
     const isAPublishedPost = db.posts.some(
@@ -84,6 +85,7 @@ const Mutation = {
       ...data,
     };
     db.comments.push(comment);
+    pubsub.publish(`comment ${data.post}`, { comment });
     return comment;
   },
   deleteComment: (parent, args, { db }, info) => {
