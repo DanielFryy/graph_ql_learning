@@ -41,7 +41,8 @@ const Mutation = {
     }
     return user;
   },
-  createPost: (parent, { data }, { db }, info) => {
+  createPost: (parent, { data }, ctx, info) => {
+    const { db, pubsub } = ctx;
     const usersExists = db.users.some(({ id }) => id === data.author);
     if (!usersExists) throw new Error('User not found');
     const post = {
@@ -49,6 +50,7 @@ const Mutation = {
       ...data,
     };
     db.posts.push(post);
+    if (post.published) pubsub.publish('post', { post });
     return post;
   },
   deletePost: (parent, args, { db }, info) => {
